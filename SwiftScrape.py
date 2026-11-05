@@ -13,7 +13,7 @@ import random
 import string
 import pandas as pd
 
-
+# --- 1. LOGIN / SIGN UP / REAL EMAIL RESET & HISTORY FUNCTIONS ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -141,83 +141,65 @@ init_db()
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="SwiftScrape SaaS Pro", page_icon="", layout="wide")
 
-# --- CUSTOM CSS STYLING (Professional Theme) ---
+# --- CUSTOM CSS STYLING (Balanced Theme) ---
 st.markdown("""
     <style>
-    /* Γενικό background */
     .main {
         background-color: #0e1117;
     }
     
-    /* Αλλαγή χρώματος στα tabs και headers */
     h1, h2, h3 {
         color: #FAFAFA;
     }
     
-    /* Στυλ για το sidebar */
     section[data-testid="stSidebar"] {
-        background-color: #161a23;
+        background-color: #1f2430;
+        border-right: 1px solid #2d3343;
     }
     
-    /* --- ΚΟΥΜΠΙΑ: Αλλαγή από φούξια σε σκούρο επαγγελματικό στυλ --- */
-    
-    /* Κύρια κουμπιά (π.χ. Login, Start Scrape) */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         font-weight: 600;
-        /* Αλλαγή χρώματος: Σκούρο γκρι/μπλε για background */
-        background-color: #262730 !important;
-        border: 1px solid #4b4d5e !important;
+        background-color: #2b3142 !important;
+        border: 1px solid #434c63 !important;
         color: white !important;
     }
-    
-    /* Hover effect για κύρια κουμπιά */
     .stButton>button:hover {
-        background-color: #4b4d5e !important;
-        border: 1px solid #6c6e85 !important;
+        background-color: #3b445c !important;
+        border: 1px solid #576385 !important;
         color: white !important;
     }
     
-    /* --- LINKS: Αλλαγή χρώματος στα κουμπιά-συνδέσμους (Stripe Plan, Log Out) --- */
     div.stLinkButton > a {
         width: 100%;
         border-radius: 8px;
         font-weight: 600;
-        /* Ενιαίο στυλ με τα κουμπιά */
-        background-color: #262730 !important;
-        border: 1px solid #4b4d5e !important;
+        background-color: #2b3142 !important;
+        border: 1px solid #434c63 !important;
         color: white !important;
         text-align: center;
         text-decoration: none;
     }
-    
-    /* Hover effect για links */
     div.stLinkButton > a:hover {
-        background-color: #4b4d5e !important;
-        border: 1px solid #6c6e85 !important;
+        background-color: #3b445c !important;
+        border: 1px solid #576385 !important;
         color: white !important;
     }
     
-    /* Styling για τη στήλη User Info στο sidebar */
     div.stSidebar div.stSuccess {
-        background-color: #1f2530 !important;
-        color: #00C853 !important;
-        border-radius: 5px;
+        background-color: #283044 !important;
+        color: #00E676 !important;
+        border: 1px solid #36415d !important;
+        border-radius: 6px;
     }
     
-    /* Στυλ για τα metrics */
     div[data-testid="stMetricValue"] {
         font-size: 2rem !important;
         color: #00E676 !important;
     }
     div[data-testid="stMetricLabel"] {
         color: #B0BEC5 !important;
-    }
-    
-    /* Στυλ για το data editor history */
-    div[data-testid="stDataFrame"] {
-        border: 1px solid #4b4d5e !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -389,7 +371,7 @@ st.sidebar.link_button("Pay €10 / Month Now", stripe_payment_link, use_contain
 st.title("SwiftScrape Enterprise Intelligence")
 st.markdown("Extract titles, headings, links, emails, and media assets instantly with advanced bot controls.")
 
-main_app_tab, history_tab = st.tabs(["🚀 Scrape Engine", "📊 My Scrape History"])
+main_app_tab, history_tab = st.tabs(["Scrape Engine", "My Scrape History"])
 
 with main_app_tab:
     col_input1, col_input2 = st.columns([4, 1])
