@@ -197,4 +197,93 @@ if not st.session_state["logged_in"]:
         
         if st.session_state["reset_stage"] == 1:
             st.markdown("Enter your email address to receive a verification code.")
-            with st.form("reset
+            with st.form("reset_request_form"):
+                reset_email = st.text_input("Account Email")
+                submit_code_req = st.form_submit_button("Send Verification Code")
+                
+                if submit_code_req:
+                    if reset_email:
+                        conn = sqlite3.connect("users.db")
+                        c = conn.cursor()
+                        c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
+                        exists = c.fetchone()
+                        conn.close()
+                        
+                        if exists:
+                            otp = ''.join(random.choices(string.digits, k=6))
+                            set_reset_code(reset_email, otp)
+                            success, message = send_email_via_smtp(reset_email, otp)
+                            if success:
+                                st.session_state["reset_email_target"] = reset_email
+                                st.session_state["reset_stage"] = 2
+                                st.success("Verification code sent to your email! Please check your inbox.")
+                                st.rerun()
+                            else:
+                                st.error(message)
+                        else:
+                            st.error("Email not found in our database.")
+                    else:
+                        st.warning("Please enter your email address.")
+        else:
+            st.markdown(f"Verification code sent to **{st.session_state['reset_email_target']}**. Enter the code and choose your new password below.")
+            with st.form("reset_confirm_form"):
+                code_input = st.text_input("6-Digit Verification Code")
+                new_custom_pass = st.text_input("New Custom Password", type="password")
+                confirm_custom_pass = st.text_input("Confirm New Password", type="password")
+                submit_update = st.form_submit_button("Update Password")
+                
+                if submit_update:
+                    if code_input and new_custom_pass and confirm_custom_pass:
+                        if new_custom_pass == confirm_custom_pass:
+                            target_email = st.session_state["reset_email_target"]
+                            if verify_and_update_password(target_email, code_input, new_custom_pass):
+                                st.success("Password successfully updated! You can now go to the 'Login' tab.")
+                                st.session_state["reset_stage"] = 1
+                                st.session_state["reset_email_target"] = ""
+                            else:
+                                st.error("Invalid verification code. Please try again.")
+                        else:
+                            st.error("New passwords do not match.")
+                    else:
+                        st.warning("Please fill in all fields.")
+                        
+            if st.button("Cancel / Restart Reset"):
+                st.session_state["reset_stage"] = 1
+                st.session_state["reset_email_target"] = ""
+                st.rerun()
+                    
+    st.stop()
+
+# --- SIDEBAR: USER INFO & BOT/SCRAPING ADVANCED CONTROLS ---
+st.sidebar.title("SwiftScrape Pro")
+username_val = st.session_state.get('username', 'Guest')
+email_val = st.session_state.get('email', '')
+st.sidebar.success(f"User: {username_val}\n({email_val})")
+if st.sidebar.button("Log Out"):
+    st.session_state["logged_in"] = False
+    st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
+request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
+max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
+custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
+    "Standard Desktop (Chrome)", 
+    "Mobile Bot (iPhone Safari)", 
+    "Googlebot Crawler"
+])
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Pro Plan - €10/month")
+st.sidebar.markdown("Unlimited Scrapes\nPriority Proxy Routing\nFull CSV/TXT Exports")
+stripe_payment_link = "https://buy.stripe.com/00w6oH1x2ckx24t3Jk2go04"
+st.sidebar.markdown("---")
+st.sidebar.link_button("Pay €10 / Month Now", stripe_payment_link, use_container_width=True)
+
+# --- MAIN APP INTERFACE ---
+st.title("SwiftScrape Enterprise Intelligence")
+st.markdown("Extract titles, headings, links, emails, and media assets instantly with advanced bot controls.")
+
+col_input1, col_input2 = st.columns([4, 1])
+with col_input1:
+    url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="
