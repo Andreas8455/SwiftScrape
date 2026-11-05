@@ -59,23 +59,23 @@ def update_password(email, new_password):
     conn.close()
 
 def send_email_via_smtp(to_email, temp_password):
-    # Διαβάζει τα στοιχεία αποστολής από τα Streamlit Secrets
+    # Reads email sender details from Streamlit Secrets
     try:
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
     except Exception:
-        return False, "Δεν έχουν ρυθμιστεί τα secrets για το email στο Streamlit Cloud."
+        return False, "Email secrets are not configured in Streamlit Cloud."
 
-    subject = "SwiftScrape - Επαναφορά Κωδικού Πρόσβασης"
-    body = f"""Γεια σας,
+    subject = "SwiftScrape - Password Reset"
+    body = f"""Hello,
 
-Ζητήσατε επαναφορά κωδικού πρόσβασης για τον λογαριασμό σας στο SwiftScrape.
-Ο νέος προσωρινός σας κωδικός είναι: {temp_password}
+You requested a password reset for your SwiftScrape account.
+Your new temporary password is: {temp_password}
 
-Μπορείτε να συνδεθείτε με αυτόν τον κωδικό και να τον αλλάξετε οποιαδήποτε στιγμή.
+You can log in with this password and change it at any time.
 
-Με εκτίμηση,
-Η ομάδα του SwiftScrape
+Best regards,
+The SwiftScrape Team
 """
 
     msg = MIMEText(body)
@@ -87,9 +87,9 @@ def send_email_via_smtp(to_email, temp_password):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
-        return True, "Το email στάλθηκε επιτυχώς!"
+        return True, "Email sent successfully!"
     except Exception as e:
-        return False, f"Σφάλμα αποστολής email: {e}"
+        return False, f"Email sending error: {e}"
 
 init_db()
 
@@ -133,13 +133,13 @@ if "logged_in" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Portal Syndesis & Eggrafis")
-    st.markdown("Παρακαλώ συνδεθείτε με το email σας, δημιουργήστε λογαριασμό ή ζητήστε επαναφορά κωδικού.")
+    st.title("🔐 SwiftScrape - Authentication Portal")
+    st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Σύνδεση", "Εγγραφή", "Real Email Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
-        st.subheader("Είσοδος στην Εφαρμογή")
+        st.subheader("Sign In to Application")
         with st.form("login_form"):
             email_l = st.text_input("Email")
             pl = st.text_input("Password", type="password")
@@ -151,15 +151,15 @@ if not st.session_state["logged_in"]:
                     st.session_state["logged_in"] = True
                     st.session_state["username"] = uname
                     st.session_state["email"] = email_l
-                    st.success(f"Καλώς ήρθες, {uname}!")
+                    st.success(f"Welcome back, {uname}!")
                     st.rerun()
                 else:
-                    st.error("Λάθος email ή κωδικός πρόσβασης.")
+                    st.error("Incorrect email or password.")
                     
     with tab_signup:
-        st.subheader("Δημιουργία Νέου Λογαριασμού")
+        st.subheader("Create a New Account")
         with st.form("signup_form"):
-            new_email = st.text_input("Email (Μοναδικό)")
+            new_email = st.text_input("Email (Unique)")
             new_user = st.text_input("Username")
             new_pass = st.text_input("Password", type="password")
             submit_signup = st.form_submit_button("Sign Up")
@@ -167,18 +167,18 @@ if not st.session_state["logged_in"]:
             if submit_signup:
                 if new_email and new_user and new_pass:
                     if add_user(new_email, new_user, new_pass):
-                        st.success("Ο λογαριασμός δημιουργήθηκε επιτυχώς! Πηγαίνετε στο tab 'Σύνδεση'.")
+                        st.success("Account created successfully! Please go to the 'Login' tab.")
                     else:
-                        st.error("Το Email υπάρχει ήδη καταχωρημένο. Δοκιμάστε άλλο.")
+                        st.error("This email is already registered. Try another one.")
                 else:
-                    st.warning("Παρακαλώ συμπληρώστε όλα τα πεδία.")
+                    st.warning("Please fill in all fields.")
                     
     with tab_reset:
-        st.subheader("Αποστολή Προσωρινού Κωδικού στο Email")
-        st.markdown("Εισάγετε το email σας για να σας αποστείλουμε νέο προσωρινό κωδικό πρόσβασης.")
+        st.subheader("Send Temporary Password via Email")
+        st.markdown("Enter your email address to receive a new temporary login password.")
         with st.form("reset_form"):
-            reset_email = st.text_input("Email Λογαριασμού")
-            submit_reset = st.form_submit_button("Αποστολή Νέου Κωδικού")
+            reset_email = st.text_input("Account Email")
+            submit_reset = st.form_submit_button("Send New Password")
             
             if submit_reset:
                 if reset_email:
@@ -189,19 +189,19 @@ if not st.session_state["logged_in"]:
                     conn.close()
                     
                     if exists:
-                        # Δημιουργία τυχαίου προσωρινού κωδικού 8 χαρακτήρων
+                        # Generate a random 8-character temporary password
                         temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
                         update_password(reset_email, temp_pass)
                         
                         success, message = send_email_via_smtp(reset_email, temp_pass)
                         if success:
-                            st.success("Ο νέος προσωρινός κωδικός στάλθηκε στο email σας! Ελέγξτε τα εισερχόμενά σας.")
+                            st.success("Your new temporary password has been sent to your email! Check your inbox.")
                         else:
                             st.error(message)
                     else:
-                        st.error("Το Email δεν βρέθηκε στη βάση δεδομένων μας.")
+                        st.error("Email not found in our database.")
                 else:
-                    st.warning("Παρακαλώ συμπληρώστε το email σας.")
+                    st.warning("Please enter your email address.")
                     
     st.stop()
 
@@ -216,8 +216,8 @@ if st.sidebar.button("Log Out"):
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🤖 Bot & Scraping Controls")
-request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Καθυστέρηση μεταξύ αιτημάτων για αποφυγή ban.")
-max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Όριο εξαγωγής συνδέσμων.")
+request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
+max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
     "Standard Desktop (Chrome)", 
     "Mobile Bot (iPhone Safari)", 
