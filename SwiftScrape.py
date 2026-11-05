@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
+    # Το username είναι PRIMARY KEY, άρα δεν επιτρέπονται διπλά ονόματα χρηστών!
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
@@ -43,6 +44,7 @@ def add_user(username, password):
         conn.close()
         return True
     except sqlite3.IntegrityError:
+        # Αν υπάρχει ήδη το username, η SQLite πετάει IntegrityError και το πιάνουμε εδώ
         conn.close()
         return False
 
