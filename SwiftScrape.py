@@ -197,31 +197,4 @@ if not st.session_state["logged_in"]:
         
         if st.session_state["reset_stage"] == 1:
             st.markdown("Enter your email address to receive a verification code.")
-            with st.form("reset_request_form"):
-                reset_email = st.text_input("Account Email")
-                submit_code_req = st.form_submit_button("Send Verification Code")
-                
-                if submit_code_req:
-                    if reset_email:
-                        conn = sqlite3.connect("users.db")
-                        c = conn.cursor()
-                        c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
-                        exists = c.fetchone()
-                        conn.close()
-                        
-                        if exists:
-                            otp = ''.join(random.choices(string.digits, k=6))
-                            set_reset_code(reset_email, otp)
-                            success, message = send_email_via_smtp(reset_email, otp)
-                            if success:
-                                st.session_state["reset_email_target"] = reset_email
-                                st.session_state["reset_stage"] = 2
-                                st.success("Verification code sent to your email! Please check your inbox.")
-                                st.rerun()
-                            else:
-                                st.error(message)
-                        else:
-                            st.error("Email not found in our database.")
-                    else:
-                        st.warning("Please enter your email address.")
-        else:
+            with st.form("reset
