@@ -20,7 +20,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             email TEXT PRIMARY KEY,
             username TEXT,
-            password TEXT
+            password TEXT,
+            reset_code TEXT
         )
     ''')
     conn.commit()
@@ -51,28 +52,40 @@ def add_user(email, username, password):
         conn.close()
         return False
 
-def update_password(email, new_password):
+def set_reset_code(email, code):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute('UPDATE users SET password = ? WHERE email = ?', (make_hash(new_password), email))
+    c.execute('UPDATE users SET reset_code = ? WHERE email = ?', (code, email))
     conn.commit()
     conn.close()
 
-def send_email_via_smtp(to_email, temp_password):
-    # Reads email sender details from Streamlit Secrets
+def verify_and_update_password(email, code, new_password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute('SELECT reset_code FROM users WHERE email = ?', (email,))
+    row = c.fetchone()
+    if row and row[0] == code:
+        c.execute('UPDATE users SET password = ?, reset_code = NULL WHERE email = ?', (make_hash(new_password), email))
+        conn.commit()
+        conn.close()
+        return True
+    conn.close()
+    return False
+
+def send_email_via_smtp(to_email, otp_code):
     try:
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
     except Exception:
         return False, "Email secrets are not configured in Streamlit Cloud."
 
-    subject = "SwiftScrape - Password Reset"
+    subject = "SwiftScrape - Password Reset Verification Code"
     body = f"""Hello,
 
 You requested a password reset for your SwiftScrape account.
-Your new temporary password is: {temp_password}
+Your verification code is: {otp_code}
 
-You can log in with this password and change it at any time.
+Enter this code along with your desired new password in the app.
 
 Best regards,
 The SwiftScrape Team
@@ -87,7 +100,7 @@ The SwiftScrape Team
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
-        return True, "Email sent successfully!"
+        return True, "Verification code sent successfully!"
     except Exception as e:
         return False, f"Email sending error: {e}"
 
@@ -131,12 +144,18 @@ st.markdown("""
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
+if "reset_stage" not in st.session_state:
+    st.session_state["reset_stage"] = 1
+
+if "reset_email_target" not in st.session_state:
+    st.session_state["reset_email_target"] = ""
+
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Authentication Portal")
+    st.title("🔐 SwiftScrape - Authentication Portal")
     st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Login", "Sign Up", "Password Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
         st.subheader("Sign In to Application")
@@ -174,34 +193,64 @@ if not st.session_state["logged_in"]:
                     st.warning("Please fill in all fields.")
                     
     with tab_reset:
-        st.subheader("Send Temporary Password via Email")
-        st.markdown("Enter your email address to receive a new temporary login password.")
-        with st.form("reset_form"):
-            reset_email = st.text_input("Account Email")
-            submit_reset = st.form_submit_button("Send New Password")
-            
-            if submit_reset:
-                if reset_email:
-                    conn = sqlite3.connect("users.db")
-                    c = conn.cursor()
-                    c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
-                    exists = c.fetchone()
-                    conn.close()
-                    
-                    if exists:
-                        # Generate a random 8-character temporary password
-                        temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-                        update_password(reset_email, temp_pass)
+        st.subheader("Reset Your Password")
+        
+        if st.session_state["reset_stage"] == 1:
+            st.markdown("Enter your email address to receive a verification code.")
+            with st.form("reset_request_form"):
+                reset_email = st.text_input("Account Email")
+                submit_code_req = st.form_submit_button("Send Verification Code")
+                
+                if submit_code_req:
+                    if reset_email:
+                        conn = sqlite3.connect("users.db")
+                        c = conn.cursor()
+                        c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
+                        exists = c.fetchone()
+                        conn.close()
                         
-                        success, message = send_email_via_smtp(reset_email, temp_pass)
-                        if success:
-                            st.success("Your new temporary password has been sent to your email! Check your inbox.")
+                        if exists:
+                            otp = ''.join(random.choices(string.digits, k=6))
+                            set_reset_code(reset_email, otp)
+                            success, message = send_email_via_smtp(reset_email, otp)
+                            if success:
+                                st.session_state["reset_email_target"] = reset_email
+                                st.session_state["reset_stage"] = 2
+                                st.success("Verification code sent to your email! Please check your inbox.")
+                                st.rerun()
+                            else:
+                                st.error(message)
                         else:
-                            st.error(message)
+                            st.error("Email not found in our database.")
                     else:
-                        st.error("Email not found in our database.")
-                else:
-                    st.warning("Please enter your email address.")
+                        st.warning("Please enter your email address.")
+        else:
+            st.markdown(f"Verification code sent to **{st.session_state['reset_email_target']}**. Enter the code and choose your new password below.")
+            with st.form("reset_confirm_form"):
+                code_input = st.text_input("6-Digit Verification Code")
+                new_custom_pass = st.text_input("New Custom Password", type="password")
+                confirm_custom_pass = st.text_input("Confirm New Password", type="password")
+                submit_update = st.form_submit_button("Update Password")
+                
+                if submit_update:
+                    if code_input and new_custom_pass and confirm_custom_pass:
+                        if new_custom_pass == confirm_custom_pass:
+                            target_email = st.session_state["reset_email_target"]
+                            if verify_and_update_password(target_email, code_input, new_custom_pass):
+                                st.success("Password successfully updated! You can now go to the 'Login' tab.")
+                                st.session_state["reset_stage"] = 1
+                                st.session_state["reset_email_target"] = ""
+                            else:
+                                st.error("Invalid verification code. Please try again.")
+                        else:
+                            st.error("New passwords do not match.")
+                    else:
+                        st.warning("Please fill in all fields.")
+                        
+            if st.button("Cancel / Restart Reset"):
+                st.session_state["reset_stage"] = 1
+                st.session_state["reset_email_target"] = ""
+                st.rerun()
                     
     st.stop()
 
@@ -215,7 +264,7 @@ if st.sidebar.button("Log Out"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Bot & Scraping Controls")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
@@ -265,56 +314,5 @@ if scrape_btn:
                     h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
                     h2_tags = [h2.get_text().strip() for h2 in soup.find_all('h2')]
                     links = [a['href'] for a in soup.find_all('a', href=True)]
-                    images = [img.get('src') for img in soup.find_all('img', src=True)]
-                    emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", response.text))
-                    
-                    st.success("Extraction completed successfully with custom bot parameters!")
-                    
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("H1 Headings", len(h1_tags))
-                    m2.metric("H2 Headings", len(h2_tags))
-                    m3.metric("Total Links", len(links))
-                    m4.metric("Media Assets", len(images))
-                    
-                    st.markdown("---")
-                    
-                    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Emails", "Media", "Links"])
-                    
-                    with tab1:
-                        st.subheader("Page Title")
-                        st.info(page_title)
-                        st.subheader("Export Report")
-                        report_text = f"URL: {url}\nTitle: {page_title}\nEmails: {list(emails)}\nTotal Links: {len(links)}\nTotal Images: {len(images)}"
-                        st.download_button(
-                            label="Download Full Report (TXT)",
-                            data=report_text,
-                            file_name="swiftscrape_report.txt",
-                            mime="text/plain"
-                        )
-                    with tab2:
-                        st.subheader("Discovered Emails")
-                        if emails:
-                            st.write(list(emails))
-                        else:
-                            st.write("No emails detected on this page.")
-                    with tab3:
-                        st.subheader("Visual Media Assets")
-                        st.write(f"Total images found: {len(images)}")
-                        if images:
-                            img_cols = st.columns(min(len(images), 3) if len(images) > 0 else 1)
-                            for idx, img_src in enumerate(images[:6]):
-                                try:
-                                    full_img_url = urljoin(url, img_src)
-                                    with img_cols[idx % len(img_cols)]:
-                                        st.image(full_img_url, width=120, caption=f"Asset {idx+1}")
-                                except:
-                                    pass
-                    with tab4:
-                        st.subheader("Extracted Hyperlinks")
-                        for link in links[:max_links_limit]:
-                            full_link = urljoin(url, link)
-                            st.markdown(f"- [{full_link}]({full_link})")
-                else:
-                    st.error(f"Failed to fetch URL. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+                    images = [img.get('src'] for img in soup.find_all('img', src=True)]
+                    emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.
