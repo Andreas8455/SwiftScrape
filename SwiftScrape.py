@@ -13,7 +13,7 @@ import random
 import string
 import pandas as pd
 
-# --- 1. LOGIN / SIGN UP / REAL EMAIL RESET & HISTORY FUNCTIONS ---
+
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -30,7 +30,6 @@ def init_db():
     except sqlite3.OperationalError:
         pass
         
-    # Πίνακας ιστορικού scraping ανά χρήστη
     c.execute('''
         CREATE TABLE IF NOT EXISTS scrape_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,33 +141,83 @@ init_db()
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="SwiftScrape SaaS Pro", page_icon="", layout="wide")
 
-# --- CUSTOM CSS STYLING ---
+# --- CUSTOM CSS STYLING (Professional Theme) ---
 st.markdown("""
     <style>
+    /* Γενικό background */
     .main {
         background-color: #0e1117;
     }
+    
+    /* Αλλαγή χρώματος στα tabs και headers */
+    h1, h2, h3 {
+        color: #FAFAFA;
+    }
+    
+    /* Στυλ για το sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #161a23;
+    }
+    
+    /* --- ΚΟΥΜΠΙΑ: Αλλαγή από φούξια σε σκούρο επαγγελματικό στυλ --- */
+    
+    /* Κύρια κουμπιά (π.χ. Login, Start Scrape) */
     .stButton>button {
         width: 100%;
         border-radius: 8px;
         font-weight: 600;
-        background-color: #ff4b4b;
-        color: white;
+        /* Αλλαγή χρώματος: Σκούρο γκρι/μπλε για background */
+        background-color: #262730 !important;
+        border: 1px solid #4b4d5e !important;
+        color: white !important;
     }
+    
+    /* Hover effect για κύρια κουμπιά */
     .stButton>button:hover {
-        background-color: #ff2b2b;
+        background-color: #4b4d5e !important;
+        border: 1px solid #6c6e85 !important;
+        color: white !important;
     }
+    
+    /* --- LINKS: Αλλαγή χρώματος στα κουμπιά-συνδέσμους (Stripe Plan, Log Out) --- */
     div.stLinkButton > a {
         width: 100%;
         border-radius: 8px;
         font-weight: 600;
-        background-color: #ff4b4b !important;
+        /* Ενιαίο στυλ με τα κουμπιά */
+        background-color: #262730 !important;
+        border: 1px solid #4b4d5e !important;
         color: white !important;
         text-align: center;
+        text-decoration: none;
     }
+    
+    /* Hover effect για links */
     div.stLinkButton > a:hover {
-        background-color: #ff2b2b !important;
+        background-color: #4b4d5e !important;
+        border: 1px solid #6c6e85 !important;
         color: white !important;
+    }
+    
+    /* Styling για τη στήλη User Info στο sidebar */
+    div.stSidebar div.stSuccess {
+        background-color: #1f2530 !important;
+        color: #00C853 !important;
+        border-radius: 5px;
+    }
+    
+    /* Στυλ για τα metrics */
+    div[data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        color: #00E676 !important;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #B0BEC5 !important;
+    }
+    
+    /* Στυλ για το data editor history */
+    div[data-testid="stDataFrame"] {
+        border: 1px solid #4b4d5e !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -340,7 +389,6 @@ st.sidebar.link_button("Pay €10 / Month Now", stripe_payment_link, use_contain
 st.title("SwiftScrape Enterprise Intelligence")
 st.markdown("Extract titles, headings, links, emails, and media assets instantly with advanced bot controls.")
 
-# Tabs για Scraping και Ιστορικό Χρήστη
 main_app_tab, history_tab = st.tabs(["🚀 Scrape Engine", "📊 My Scrape History"])
 
 with main_app_tab:
@@ -377,7 +425,6 @@ with main_app_tab:
                         images = [img.get('src') for img in soup.find_all('img', src=True)]
                         emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", response.text))
                         
-                        # Αποθήκευση στη βάση δεδομένων για τον τρέχοντα χρήστη
                         save_scrape_history(email_val, url, page_title, len(h1_tags), len(h2_tags), len(links))
                         
                         st.success("Extraction completed successfully and saved to your history!")
@@ -405,7 +452,6 @@ with main_app_tab:
                                 mime="text/plain"
                             )
                             
-                            # Δημιουργία CSV για εξαγωγή σε Excel
                             df_export = pd.DataFrame([{
                                 "URL": url,
                                 "Title": page_title,
@@ -456,7 +502,6 @@ with history_tab:
     if not user_hist_df.empty:
         st.dataframe(user_hist_df, use_container_width=True)
         
-        # Επιλογή λήψης όλου του ιστορικού σε CSV
         csv_history = user_hist_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="Download Full History (CSV)",
