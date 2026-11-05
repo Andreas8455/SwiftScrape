@@ -152,10 +152,10 @@ if "reset_email_target" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Authentication Portal")
+    st.title("🔐 SwiftScrape - Authentication Portal")
     st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Login", "Sign Up", "Password Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
         st.subheader("Sign In to Application")
@@ -264,7 +264,7 @@ if st.sidebar.button("Log Out"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Bot & Scraping Controls")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
@@ -286,4 +286,84 @@ st.markdown("Extract titles, headings, links, emails, and media assets instantly
 
 col_input1, col_input2 = st.columns([4, 1])
 with col_input1:
-    url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="
+    url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="collapsed", placeholder="Enter website URL")
+with col_input2:
+    scrape_btn = st.button("Start Scrape", use_container_width=True)
+
+if scrape_btn:
+    if not url.startswith("http"):
+        st.error("Please enter a valid URL starting with 'http://' or 'https://'.")
+    else:
+        with st.spinner("Executing deep web extraction with bot configurations..."):
+            try:
+                ua_dict = {
+                    "Standard Desktop (Chrome)": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    "Mobile Bot (iPhone Safari)": 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+                    "Googlebot Crawler": 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+                }
+                headers = {'User-Agent': ua_dict.get(custom_user_agent, ua_dict["Standard Desktop (Chrome)"])}
+                
+                if request_delay > 0:
+                    time.sleep(request_delay)
+                
+                response = requests.get(url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    
+                    page_title = soup.title.string if soup.title else "No Title Found"
+                    h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
+                    h2_tags = [h2.get_text().strip() for h2 in soup.find_all('h2')]
+                    links = [a['href'] for a in soup.find_all('a', href=True)]
+                    images = [img.get('src') for img in soup.find_all('img', src=True)]
+                    emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", response.text))
+                    
+                    st.success("Extraction completed successfully with custom bot parameters!")
+                    
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("H1 Headings", len(h1_tags))
+                    m2.metric("H2 Headings", len(h2_tags))
+                    m3.metric("Total Links", len(links))
+                    m4.metric("Media Assets", len(images))
+                    
+                    st.markdown("---")
+                    
+                    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Emails", "Media", "Links"])
+                    
+                    with tab1:
+                        st.subheader("Page Title")
+                        st.info(page_title)
+                        st.subheader("Export Report")
+                        report_text = f"URL: {url}\nTitle: {page_title}\nEmails: {list(emails)}\nTotal Links: {len(links)}\nTotal Images: {len(images)}"
+                        st.download_button(
+                            label="Download Full Report (TXT)",
+                            data=report_text,
+                            file_name="swiftscrape_report.txt",
+                            mime="text/plain"
+                        )
+                    with tab2:
+                        st.subheader("Discovered Emails")
+                        if emails:
+                            st.write(list(emails))
+                        else:
+                            st.write("No emails detected on this page.")
+                    with tab3:
+                        st.subheader("Visual Media Assets")
+                        st.write(f"Total images found: {len(images)}")
+                        if images:
+                            img_cols = st.columns(min(len(images), 3) if len(images) > 0 else 1)
+                            for idx, img_src in enumerate(images[:6]):
+                                try:
+                                    full_img_url = urljoin(url, img_src)
+                                    with img_cols[idx % len(img_cols)]:
+                                        st.image(full_img_url, width=120, caption=f"Asset {idx+1}")
+                                except:
+                                    pass
+                    with tab4:
+                        st.subheader("Extracted Hyperlinks")
+                        for link in links[:max_links_limit]:
+                            full_link = urljoin(url, link)
+                            st.markdown(f"- [{full_link}]({full_link})")
+                else:
+                    st.error(f"Failed to fetch URL. Status code: {response.status_code}")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
