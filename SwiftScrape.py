@@ -11,8 +11,9 @@ import smtplib
 from email.mime.text import MIMEText
 import random
 import string
+import pandas as pd
 
-# --- 1. LOGIN / SIGN UP / REAL EMAIL RESET FUNCTIONS ---
+# --- 1. LOGIN / SIGN UP / REAL EMAIL RESET & HISTORY FUNCTIONS ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
@@ -28,6 +29,20 @@ def init_db():
         c.execute('ALTER TABLE users ADD COLUMN reset_code TEXT')
     except sqlite3.OperationalError:
         pass
+        
+    # Πίνακας ιστορικού scraping ανά χρήστη
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS scrape_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT,
+            url TEXT,
+            title TEXT,
+            h1_count INTEGER,
+            h2_count INTEGER,
+            links_count INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -75,6 +90,20 @@ def verify_and_update_password(email, code, new_password):
         return True
     conn.close()
     return False
+
+def save_scrape_history(email, url, title, h1_c, h2_c, links_c):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute('INSERT INTO scrape_history (email, url, title, h1_count, h2_count, links_count) VALUES (?, ?, ?, ?, ?, ?)',
+              (email, url, title, h1_c, h2_c, links_c))
+    conn.commit()
+    conn.close()
+
+def get_user_history(email):
+    conn = sqlite3.connect("users.db")
+    df = pd.read_sql_query('SELECT url, title, h1_count, h2_count, links_count, timestamp FROM scrape_history WHERE email = ? ORDER BY timestamp DESC', conn, params=(email,))
+    conn.close()
+    return df
 
 def send_email_via_smtp(to_email, otp_code):
     try:
@@ -156,10 +185,10 @@ if "reset_email_target" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Authentication Portal")
+    st.title("🔐 SwiftScrape - Authentication Portal")
     st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Login", "Sign Up", "Password Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
         st.subheader("Sign In to Application")
@@ -291,7 +320,7 @@ if st.sidebar.button("Log Out"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Bot & Scraping Controls")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
@@ -311,86 +340,129 @@ st.sidebar.link_button("Pay €10 / Month Now", stripe_payment_link, use_contain
 st.title("SwiftScrape Enterprise Intelligence")
 st.markdown("Extract titles, headings, links, emails, and media assets instantly with advanced bot controls.")
 
-col_input1, col_input2 = st.columns([4, 1])
-with col_input1:
-    url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="collapsed", placeholder="Enter website URL")
-with col_input2:
-    scrape_btn = st.button("Start Scrape", use_container_width=True)
+# Tabs για Scraping και Ιστορικό Χρήστη
+main_app_tab, history_tab = st.tabs(["🚀 Scrape Engine", "📊 My Scrape History"])
 
-if scrape_btn:
-    if not url.startswith("http"):
-        st.error("Please enter a valid URL starting with 'http://' or 'https://'.")
+with main_app_tab:
+    col_input1, col_input2 = st.columns([4, 1])
+    with col_input1:
+        url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="collapsed", placeholder="Enter website URL")
+    with col_input2:
+        scrape_btn = st.button("Start Scrape", use_container_width=True)
+
+    if scrape_btn:
+        if not url.startswith("http"):
+            st.error("Please enter a valid URL starting with 'http://' or 'https://'.")
+        else:
+            with st.spinner("Executing deep web extraction with bot configurations..."):
+                try:
+                    ua_dict = {
+                        "Standard Desktop (Chrome)": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        "Mobile Bot (iPhone Safari)": 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+                        "Googlebot Crawler": 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+                    }
+                    headers = {'User-Agent': ua_dict.get(custom_user_agent, ua_dict["Standard Desktop (Chrome)"])}
+                    
+                    if request_delay > 0:
+                        time.sleep(request_delay)
+                    
+                    response = requests.get(url, headers=headers, timeout=10)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+                        
+                        page_title = soup.title.string if soup.title else "No Title Found"
+                        h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
+                        h2_tags = [h2.get_text().strip() for h2 in soup.find_all('h2')]
+                        links = [a['href'] for a in soup.find_all('a', href=True)]
+                        images = [img.get('src') for img in soup.find_all('img', src=True)]
+                        emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", response.text))
+                        
+                        # Αποθήκευση στη βάση δεδομένων για τον τρέχοντα χρήστη
+                        save_scrape_history(email_val, url, page_title, len(h1_tags), len(h2_tags), len(links))
+                        
+                        st.success("Extraction completed successfully and saved to your history!")
+                        
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("H1 Headings", len(h1_tags))
+                        m2.metric("H2 Headings", len(h2_tags))
+                        m3.metric("Total Links", len(links))
+                        m4.metric("Media Assets", len(images))
+                        
+                        st.markdown("---")
+                        
+                        tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Emails", "Media", "Links"])
+                        
+                        with tab1:
+                            st.subheader("Page Title")
+                            st.info(page_title)
+                            st.subheader("Export Report")
+                            
+                            report_text = f"URL: {url}\nTitle: {page_title}\nEmails: {list(emails)}\nTotal Links: {len(links)}\nTotal Images: {len(images)}"
+                            st.download_button(
+                                label="Download Full Report (TXT)",
+                                data=report_text,
+                                file_name="swiftscrape_report.txt",
+                                mime="text/plain"
+                            )
+                            
+                            # Δημιουργία CSV για εξαγωγή σε Excel
+                            df_export = pd.DataFrame([{
+                                "URL": url,
+                                "Title": page_title,
+                                "H1_Count": len(h1_tags),
+                                "H2_Count": len(h2_tags),
+                                "Links_Count": len(links),
+                                "Images_Count": len(images)
+                            }])
+                            csv_data = df_export.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="Download Report (CSV / Excel)",
+                                data=csv_data,
+                                file_name="swiftscrape_report.csv",
+                                mime="text/csv"
+                            )
+                        with tab2:
+                            st.subheader("Discovered Emails")
+                            if emails:
+                                st.write(list(emails))
+                            else:
+                                st.write("No emails detected on this page.")
+                        with tab3:
+                            st.subheader("Visual Media Assets")
+                            st.write(f"Total images found: {len(images)}")
+                            if images:
+                                img_cols = st.columns(min(len(images), 3) if len(images) > 0 else 1)
+                                for idx, img_src in enumerate(images[:6]):
+                                    try:
+                                        full_img_url = urljoin(url, img_src)
+                                        with img_cols[idx % len(img_cols)]:
+                                            st.image(full_img_url, width=120, caption=f"Asset {idx+1}")
+                                    except:
+                                        pass
+                        with tab4:
+                            st.subheader("Extracted Hyperlinks")
+                            for link in links[:max_links_limit]:
+                                full_link = urljoin(url, link)
+                                st.markdown(f"- [{full_link}]({full_link})")
+                    else:
+                        st.error(f"Failed to fetch URL. Status code: {response.status_code}")
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+
+with history_tab:
+    st.subheader("📜 Your Past Scrapes")
+    st.markdown("Here is the history of all the URLs you have scraped with your account.")
+    user_hist_df = get_user_history(email_val)
+    if not user_hist_df.empty:
+        st.dataframe(user_hist_df, use_container_width=True)
+        
+        # Επιλογή λήψης όλου του ιστορικού σε CSV
+        csv_history = user_hist_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download Full History (CSV)",
+            data=csv_history,
+            file_name="my_scrape_history.csv",
+            mime="text/csv"
+        )
     else:
-        with st.spinner("Executing deep web extraction with bot configurations..."):
-            try:
-                ua_dict = {
-                    "Standard Desktop (Chrome)": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    "Mobile Bot (iPhone Safari)": 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
-                    "Googlebot Crawler": 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-                }
-                headers = {'User-Agent': ua_dict.get(custom_user_agent, ua_dict["Standard Desktop (Chrome)"])}
-                
-                if request_delay > 0:
-                    time.sleep(request_delay)
-                
-                response = requests.get(url, headers=headers, timeout=10)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    
-                    page_title = soup.title.string if soup.title else "No Title Found"
-                    h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
-                    h2_tags = [h2.get_text().strip() for h2 in soup.find_all('h2')]
-                    links = [a['href'] for a in soup.find_all('a', href=True)]
-                    images = [img.get('src') for img in soup.find_all('img', src=True)]
-                    emails = set(re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", response.text))
-                    
-                    st.success("Extraction completed successfully with custom bot parameters!")
-                    
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("H1 Headings", len(h1_tags))
-                    m2.metric("H2 Headings", len(h2_tags))
-                    m3.metric("Total Links", len(links))
-                    m4.metric("Media Assets", len(images))
-                    
-                    st.markdown("---")
-                    
-                    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Emails", "Media", "Links"])
-                    
-                    with tab1:
-                        st.subheader("Page Title")
-                        st.info(page_title)
-                        st.subheader("Export Report")
-                        report_text = f"URL: {url}\nTitle: {page_title}\nEmails: {list(emails)}\nTotal Links: {len(links)}\nTotal Images: {len(images)}"
-                        st.download_button(
-                            label="Download Full Report (TXT)",
-                            data=report_text,
-                            file_name="swiftscrape_report.txt",
-                            mime="text/plain"
-                        )
-                    with tab2:
-                        st.subheader("Discovered Emails")
-                        if emails:
-                            st.write(list(emails))
-                        else:
-                            st.write("No emails detected on this page.")
-                    with tab3:
-                        st.subheader("Visual Media Assets")
-                        st.write(f"Total images found: {len(images)}")
-                        if images:
-                            img_cols = st.columns(min(len(images), 3) if len(images) > 0 else 1)
-                            for idx, img_src in enumerate(images[:6]):
-                                try:
-                                    full_img_url = urljoin(url, img_src)
-                                    with img_cols[idx % len(img_cols)]:
-                                        st.image(full_img_url, width=120, caption=f"Asset {idx+1}")
-                                except:
-                                    pass
-                    with tab4:
-                        st.subheader("Extracted Hyperlinks")
-                        for link in links[:max_links_limit]:
-                            full_link = urljoin(url, link)
-                            st.markdown(f"- [{full_link}]({full_link})")
-                else:
-                    st.error(f"Failed to fetch URL. Status code: {response.status_code}")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+        st.info("No scraping history found yet. Run your first scrape from the 'Scrape Engine' tab!")
