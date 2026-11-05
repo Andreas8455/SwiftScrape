@@ -261,11 +261,23 @@ if not st.session_state["logged_in"]:
                                 st.error("Invalid verification code. Please try again.")
                     else:
                         st.warning("Please fill in all fields.")
-                        
-            if st.button("Cancel / Restart Reset"):
-                st.session_state["reset_stage"] = 1
-                st.session_state["reset_email_target"] = ""
-                st.rerun()
+            
+            col_resend, col_cancel = st.columns(2)
+            with col_resend:
+                if st.button("Resend Code"):
+                    target_email = st.session_state["reset_email_target"]
+                    otp = ''.join(random.choices(string.digits, k=6))
+                    set_reset_code(target_email, otp)
+                    success, message = send_email_via_smtp(target_email, otp)
+                    if success:
+                        st.success("A new verification code has been resent to your email!")
+                    else:
+                        st.error(message)
+            with col_cancel:
+                if st.button("Cancel / Restart Reset"):
+                    st.session_state["reset_stage"] = 1
+                    st.session_state["reset_email_target"] = ""
+                    st.rerun()
                     
     st.stop()
 
