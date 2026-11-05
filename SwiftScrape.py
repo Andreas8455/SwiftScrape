@@ -7,12 +7,15 @@ import re
 import time
 import stripe 
 from urllib.parse import urljoin
+import smtplib
+from email.mime.text import MIMEText
+import random
+import string
 
-# --- 1. LOGIN / SIGN UP / RESET DATABASE & FUNCTIONS (ME EMAIL) ---
+# --- 1. LOGIN / SIGN UP / REAL EMAIL RESET FUNCTIONS ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    # To email einai pleon PRIMARY KEY gia monadikotita kai asfaleia
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             email TEXT PRIMARY KEY,
@@ -33,7 +36,7 @@ def check_user(email, password):
     data = c.fetchone()
     conn.close()
     if data and data[0] == make_hash(password):
-        return data[1] # Epistrefei to username tou xristi
+        return data[1]
     return None
 
 def add_user(email, username, password):
@@ -45,7 +48,6 @@ def add_user(email, username, password):
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        # An to email yparxei idi sti vasi
         conn.close()
         return False
 
@@ -55,6 +57,39 @@ def update_password(email, new_password):
     c.execute('UPDATE users SET password = ? WHERE email = ?', (make_hash(new_password), email))
     conn.commit()
     conn.close()
+
+def send_email_via_smtp(to_email, temp_password):
+    # Διαβάζει τα στοιχεία αποστολής από τα Streamlit Secrets
+    try:
+        sender_email = st.secrets["email"]["sender"]
+        sender_password = st.secrets["email"]["password"]
+    except Exception:
+        return False, "Δεν έχουν ρυθμιστεί τα secrets για το email στο Streamlit Cloud."
+
+    subject = "SwiftScrape - Επαναφορά Κωδικού Πρόσβασης"
+    body = f"""Γεια σας,
+
+Ζητήσατε επαναφορά κωδικού πρόσβασης για τον λογαριασμό σας στο SwiftScrape.
+Ο νέος προσωρινός σας κωδικός είναι: {temp_password}
+
+Μπορείτε να συνδεθείτε με αυτόν τον κωδικό και να τον αλλάξετε οποιαδήποτε στιγμή.
+
+Με εκτίμηση,
+Η ομάδα του SwiftScrape
+"""
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = to_email
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, to_email, msg.as_string())
+        return True, "Το email στάλθηκε επιτυχώς!"
+    except Exception as e:
+        return False, f"Σφάλμα αποστολής email: {e}"
 
 init_db()
 
@@ -99,9 +134,9 @@ if "logged_in" not in st.session_state:
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
     st.title("🔐 SwiftScrape - Portal Syndesis & Eggrafis")
-    st.markdown("Παρακαλώ συνδεθείτε με το email σας, δημιουργήστε λογαριασμό ή κάντε επαναφορά κωδικού.")
+    st.markdown("Παρακαλώ συνδεθείτε με το email σας, δημιουργήστε λογαριασμό ή ζητήστε επαναφορά κωδικού.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Σύνδεση", "📝 Εγγραφή", "🔄 Reset Password"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Σύνδεση", "📝 Εγγραφή", "🔄 Real Email Reset"])
     
     with tab_login:
         st.subheader("Είσοδος στην Εφαρμογή")
@@ -139,14 +174,14 @@ if not st.session_state["logged_in"]:
                     st.warning("Παρακαλώ συμπληρώστε όλα τα πεδία.")
                     
     with tab_reset:
-        st.subheader("Επαναφορά Κωδικού με Email")
+        st.subheader("Αποστολή Προσωρινού Κωδικού στο Email")
+        st.markdown("Εισάγετε το email σας για να σας αποστείλουμε νέο προσωρινό κωδικό πρόσβασης.")
         with st.form("reset_form"):
             reset_email = st.text_input("Email Λογαριασμού")
-            reset_pass = st.text_input("Νέος Κωδικός Πρόσβασης", type="password")
-            submit_reset = st.form_submit_button("Αλλαγή Κωδικού")
+            submit_reset = st.form_submit_button("Αποστολή Νέου Κωδικού")
             
             if submit_reset:
-                if reset_email and reset_pass:
+                if reset_email:
                     conn = sqlite3.connect("users.db")
                     c = conn.cursor()
                     c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
@@ -154,12 +189,19 @@ if not st.session_state["logged_in"]:
                     conn.close()
                     
                     if exists:
-                        update_password(reset_email, reset_pass)
-                        st.success("Ο κωδικός σας άλλαξε με επιτυχία! Μπορείτε να συνδεθείτε.")
+                        # Δημιουργία τυχαίου προσωρινού κωδικού 8 χαρακτήρων
+                        temp_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+                        update_password(reset_email, temp_pass)
+                        
+                        success, message = send_email_via_smtp(reset_email, temp_pass)
+                        if success:
+                            st.success("Ο νέος προσωρινός κωδικός στάλθηκε στο email σας! Ελέγξτε τα εισερχόμενά σας.")
+                        else:
+                            st.error(message)
                     else:
-                        st.error("Το Email δεν βρέθηκε στη βάση δεδομένων.")
+                        st.error("Το Email δεν βρέθηκε στη βάση δεδομένων μας.")
                 else:
-                    st.warning("Παρακαλώ συμπληρώστε όλα τα πεδία.")
+                    st.warning("Παρακαλώ συμπληρώστε το email σας.")
                     
     st.stop()
 
