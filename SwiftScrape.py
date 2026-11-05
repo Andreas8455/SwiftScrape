@@ -27,7 +27,7 @@ def init_db():
     try:
         c.execute('ALTER TABLE users ADD COLUMN reset_code TEXT')
     except sqlite3.OperationalError:
-        pass # Η στήλη υπάρχει ήδη
+        pass
     conn.commit()
     conn.close()
 
@@ -156,10 +156,10 @@ if "reset_email_target" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Authentication Portal")
+    st.title("🔐 SwiftScrape - Authentication Portal")
     st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Login", "Sign Up", "Password Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
         st.subheader("Sign In to Application")
@@ -241,9 +241,11 @@ if not st.session_state["logged_in"]:
                         if new_custom_pass == confirm_custom_pass:
                             target_email = st.session_state["reset_email_target"]
                             if verify_and_update_password(target_email, code_input, new_custom_pass):
-                                st.success("Password successfully updated! You can now go to the 'Login' tab.")
+                                st.success("Password successfully updated! You can now log in.")
                                 st.session_state["reset_stage"] = 1
                                 st.session_state["reset_email_target"] = ""
+                                time.sleep(1.5)
+                                st.rerun()
                             else:
                                 st.error("Invalid verification code. Please try again.")
                         else:
@@ -268,7 +270,7 @@ if st.sidebar.button("Log Out"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Bot & Scraping Controls")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
