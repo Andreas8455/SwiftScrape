@@ -133,10 +133,10 @@ if "logged_in" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("🔐 SwiftScrape - Portal Syndesis & Eggrafis")
+    st.title("SwiftScrape - Portal Syndesis & Eggrafis")
     st.markdown("Παρακαλώ συνδεθείτε με το email σας, δημιουργήστε λογαριασμό ή ζητήστε επαναφορά κωδικού.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Σύνδεση", "📝 Εγγραφή", "🔄 Real Email Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["Σύνδεση", "Εγγραφή", "Real Email Reset"])
     
     with tab_login:
         st.subheader("Είσοδος στην Εφαρμογή")
