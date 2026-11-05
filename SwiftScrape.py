@@ -24,6 +24,10 @@ def init_db():
             reset_code TEXT
         )
     ''')
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN reset_code TEXT')
+    except sqlite3.OperationalError:
+        pass # Η στήλη υπάρχει ήδη
     conn.commit()
     conn.close()
 
