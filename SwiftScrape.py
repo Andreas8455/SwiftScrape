@@ -152,7 +152,6 @@ st.markdown("""
         color: #FAFAFA;
     }
     
-    /* Sidebar Background & Text Color Fix */
     section[data-testid="stSidebar"] {
         background-color: #1f2430;
         border-right: 1px solid #2d3343;
@@ -334,4 +333,10 @@ if not st.session_state["logged_in"]:
                     otp = ''.join(random.choices(string.digits, k=6))
                     set_reset_code(target_email, otp)
                     success, message = send_email_via_smtp(target_email, otp)
-                    if
+                    if success:
+                        st.success("A new verification code has been resent to your email!")
+                    else:
+                        st.error(message)
+            with col_cancel:
+                if st.button("Cancel / Restart Reset"):
+                    st.session_
