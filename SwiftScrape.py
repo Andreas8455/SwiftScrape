@@ -8,14 +8,15 @@ import time
 import stripe 
 from urllib.parse import urljoin
 
-# --- 1. LOGIN / SIGN UP DATABASE & FUNCTIONS ---
+# --- 1. LOGIN / SIGN UP / RESET DATABASE & FUNCTIONS (ME EMAIL) ---
 def init_db():
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    # Το username είναι PRIMARY KEY, άρα δεν επιτρέπονται διπλά ονόματα χρηστών!
+    # To email einai pleon PRIMARY KEY gia monadikotita kai asfaleia
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
+            email TEXT PRIMARY KEY,
+            username TEXT,
             password TEXT
         )
     ''')
@@ -25,28 +26,35 @@ def init_db():
 def make_hash(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
-def check_user(username, password):
+def check_user(email, password):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
-    c.execute('SELECT password FROM users WHERE username = ?', (username,))
+    c.execute('SELECT password, username FROM users WHERE email = ?', (email,))
     data = c.fetchone()
     conn.close()
     if data and data[0] == make_hash(password):
-        return True
-    return False
+        return data[1] # Epistrefei to username tou xristi
+    return None
 
-def add_user(username, password):
+def add_user(email, username, password):
     conn = sqlite3.connect("users.db")
     c = conn.cursor()
     try:
-        c.execute('INSERT INTO users(username, password) VALUES (?, ?)', (username, make_hash(password)))
+        c.execute('INSERT INTO users(email, username, password) VALUES (?, ?, ?)', (email, username, make_hash(password)))
         conn.commit()
         conn.close()
         return True
     except sqlite3.IntegrityError:
-        # Αν υπάρχει ήδη το username, η SQLite πετάει IntegrityError και το πιάνουμε εδώ
+        # An to email yparxei idi sti vasi
         conn.close()
         return False
+
+def update_password(email, new_password):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute('UPDATE users SET password = ? WHERE email = ?', (make_hash(new_password), email))
+    conn.commit()
+    conn.close()
 
 init_db()
 
@@ -88,42 +96,68 @@ st.markdown("""
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
-# --- AUTH LOGIN / SIGN UP PORTAL ---
+# --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
     st.title("🔐 SwiftScrape - Portal Syndesis & Eggrafis")
-    st.markdown("Παρακαλώ συνδεθείτε ή δημιουργήστε νέο λογαριασμό για να προχωρήσετε στην εφαρμογή.")
+    st.markdown("Παρακαλώ συνδεθείτε με το email σας, δημιουργήστε λογαριασμό ή κάντε επαναφορά κωδικού.")
     
-    tab_login, tab_signup = st.tabs(["🔑 Σύνδεση (Login)", "📝 Εγγραφή (Sign Up)"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Σύνδεση", "📝 Εγγραφή", "🔄 Reset Password"])
     
     with tab_login:
         st.subheader("Είσοδος στην Εφαρμογή")
         with st.form("login_form"):
-            ul = st.text_input("Username")
+            email_l = st.text_input("Email")
             pl = st.text_input("Password", type="password")
             submit_login = st.form_submit_button("Log In")
             
             if submit_login:
-                if check_user(ul, pl):
+                uname = check_user(email_l, pl)
+                if uname:
                     st.session_state["logged_in"] = True
-                    st.session_state["username"] = ul
-                    st.success(f"Καλώς ήρθες, {ul}!")
+                    st.session_state["username"] = uname
+                    st.session_state["email"] = email_l
+                    st.success(f"Καλώς ήρθες, {uname}!")
                     st.rerun()
                 else:
-                    st.error("Λάθος όνομα χρήστη ή κωδικός πρόσβασης.")
+                    st.error("Λάθος email ή κωδικός πρόσβασης.")
                     
     with tab_signup:
         st.subheader("Δημιουργία Νέου Λογαριασμού")
         with st.form("signup_form"):
-            new_user = st.text_input("Επιλέξτε Username")
-            new_pass = st.text_input("Επιλέξτε Password", type="password")
+            new_email = st.text_input("Email (Μοναδικό)")
+            new_user = st.text_input("Username")
+            new_pass = st.text_input("Password", type="password")
             submit_signup = st.form_submit_button("Sign Up")
             
             if submit_signup:
-                if new_user and new_pass:
-                    if add_user(new_user, new_pass):
+                if new_email and new_user and new_pass:
+                    if add_user(new_email, new_user, new_pass):
                         st.success("Ο λογαριασμός δημιουργήθηκε επιτυχώς! Πηγαίνετε στο tab 'Σύνδεση'.")
                     else:
-                        st.error("Το Username υπάρχει ήδη. Δοκιμάστε άλλο.")
+                        st.error("Το Email υπάρχει ήδη καταχωρημένο. Δοκιμάστε άλλο.")
+                else:
+                    st.warning("Παρακαλώ συμπληρώστε όλα τα πεδία.")
+                    
+    with tab_reset:
+        st.subheader("Επαναφορά Κωδικού με Email")
+        with st.form("reset_form"):
+            reset_email = st.text_input("Email Λογαριασμού")
+            reset_pass = st.text_input("Νέος Κωδικός Πρόσβασης", type="password")
+            submit_reset = st.form_submit_button("Αλλαγή Κωδικού")
+            
+            if submit_reset:
+                if reset_email and reset_pass:
+                    conn = sqlite3.connect("users.db")
+                    c = conn.cursor()
+                    c.execute('SELECT email FROM users WHERE email = ?', (reset_email,))
+                    exists = c.fetchone()
+                    conn.close()
+                    
+                    if exists:
+                        update_password(reset_email, reset_pass)
+                        st.success("Ο κωδικός σας άλλαξε με επιτυχία! Μπορείτε να συνδεθείτε.")
+                    else:
+                        st.error("Το Email δεν βρέθηκε στη βάση δεδομένων.")
                 else:
                     st.warning("Παρακαλώ συμπληρώστε όλα τα πεδία.")
                     
@@ -132,7 +166,8 @@ if not st.session_state["logged_in"]:
 # --- SIDEBAR: USER INFO & BOT/SCRAPING ADVANCED CONTROLS ---
 st.sidebar.title("SwiftScrape Pro")
 username_val = st.session_state.get('username', 'Guest')
-st.sidebar.success(f"Συνδεδεμένος: {username_val}")
+email_val = st.session_state.get('email', '')
+st.sidebar.success(f"User: {username_val}\n({email_val})")
 if st.sidebar.button("Log Out"):
     st.session_state["logged_in"] = False
     st.rerun()
