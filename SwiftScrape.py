@@ -156,10 +156,10 @@ if "reset_email_target" not in st.session_state:
 
 # --- AUTH LOGIN / SIGN UP / RESET PORTAL ---
 if not st.session_state["logged_in"]:
-    st.title("SwiftScrape - Authentication Portal")
+    st.title("🔐 SwiftScrape - Authentication Portal")
     st.markdown("Please log in with your email, create a new account, or request a password reset.")
     
-    tab_login, tab_signup, tab_reset = st.tabs(["Login", "Sign Up", "Password Reset"])
+    tab_login, tab_signup, tab_reset = st.tabs(["🔑 Login", "📝 Sign Up", "🔄 Password Reset"])
     
     with tab_login:
         st.subheader("Sign In to Application")
@@ -184,13 +184,15 @@ if not st.session_state["logged_in"]:
         with st.form("signup_form"):
             new_email = st.text_input("Email (Unique)")
             new_user = st.text_input("Username")
-            new_pass = st.text_input("Password (min. 6 characters)", type="password")
+            new_pass = st.text_input("Password (min. 6 chars, letters & numbers)", type="password")
             submit_signup = st.form_submit_button("Sign Up")
             
             if submit_signup:
                 if new_email and new_user and new_pass:
                     if len(new_pass) < 6:
                         st.error("Password must be at least 6 characters long.")
+                    elif not any(char.isalpha() for char in new_pass) or not any(char.isdigit() for char in new_pass):
+                        st.error("Password must contain both letters and numbers.")
                     else:
                         if add_user(new_email, new_user, new_pass):
                             st.success("Account created successfully! Please go to the 'Login' tab.")
@@ -232,7 +234,7 @@ if not st.session_state["logged_in"]:
                     else:
                         st.warning("Please enter your email address.")
         else:
-            st.markdown(f"Verification code sent to **{st.session_state['reset_email_target']}**. Enter the code and choose your new password below (min. 6 characters).")
+            st.markdown(f"Verification code sent to **{st.session_state['reset_email_target']}**. Enter the code and choose your new password (min. 6 chars, letters & numbers).")
             with st.form("reset_confirm_form"):
                 code_input = st.text_input("6-Digit Verification Code")
                 new_custom_pass = st.text_input("New Custom Password", type="password")
@@ -243,6 +245,8 @@ if not st.session_state["logged_in"]:
                     if code_input and new_custom_pass and confirm_custom_pass:
                         if len(new_custom_pass) < 6:
                             st.error("Password must be at least 6 characters long.")
+                        elif not any(char.isalpha() for char in new_custom_pass) or not any(char.isdigit() for char in new_custom_pass):
+                            st.error("Password must contain both letters and numbers.")
                         elif new_custom_pass != confirm_custom_pass:
                             st.error("New passwords do not match.")
                         else:
@@ -275,7 +279,7 @@ if st.sidebar.button("Log Out"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Bot & Scraping Controls")
+st.sidebar.subheader("🤖 Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
 custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
