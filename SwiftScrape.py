@@ -334,8 +334,4 @@ if not st.session_state["logged_in"]:
                     otp = ''.join(random.choices(string.digits, k=6))
                     set_reset_code(target_email, otp)
                     success, message = send_email_via_smtp(target_email, otp)
-                    if success:
-                        st.success("A new verification code has been resent to your email!")
-                    else:
-                        st.error(message)
-            with col
+                    if
