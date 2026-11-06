@@ -161,17 +161,6 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    /* FIX: User Info Box - Dark background with bright green/white readable text */
-    section[data-testid="stSidebar"] div.stSuccess {
-        background-color: #2b3142 !important;
-        border: 1px solid #434c63 !important;
-        border-radius: 6px;
-    }
-    section[data-testid="stSidebar"] div.stSuccess * {
-        color: #00E676 !important;
-        font-weight: 600 !important;
-    }
-    
     div[data-baseweb="select"] * {
         color: #1f2430 !important;
     }
@@ -357,7 +346,15 @@ if not st.session_state["logged_in"]:
 st.sidebar.title("SwiftScrape Pro")
 username_val = st.session_state.get('username', 'Guest')
 email_val = st.session_state.get('email', '')
-st.sidebar.success(f"User: {username_val}\n({email_val})")
+
+# Custom HTML User Box to guarantee dark background and clear visible text
+st.sidebar.markdown(f"""
+    <div style="background-color: #161b22; padding: 12px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 15px;">
+        <div style="color: #00E676; font-weight: 600; font-size: 0.95rem;">User: {username_val}</div>
+        <div style="color: #8b949e; font-size: 0.85rem; margin-top: 2px;">({email_val})</div>
+    </div>
+""", unsafe_allow_html=True)
+
 if st.sidebar.button("Log Out"):
     st.session_state["logged_in"] = False
     st.rerun()
