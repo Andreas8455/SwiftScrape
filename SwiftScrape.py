@@ -460,4 +460,33 @@ with main_app_tab:
                                 for idx, img_src in enumerate(images[:6]):
                                     try:
                                         full_img_url = urljoin(url, img_src)
-                                        with img_cols
+                                        with img_cols[idx % len(img_cols)]:
+                                            st.image(full_img_url, width=120, caption=f"Asset {idx+1}")
+                                    except:
+                                        pass
+                        with tab4:
+                            st.subheader("Extracted Hyperlinks")
+                            for link in links[:max_links_limit]:
+                                full_link = urljoin(url, link)
+                                st.markdown(f"- [{full_link}]({full_link})")
+                    else:
+                        st.error(f"Failed to fetch URL. Status code: {response.status_code}")
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
+
+with history_tab:
+    st.subheader("Your Past Scrapes")
+    st.markdown("Here is the history of all the URLs you have scraped with your account.")
+    user_hist_df = get_user_history(email_val)
+    if not user_hist_df.empty:
+        st.dataframe(user_hist_df, use_container_width=True)
+        
+        csv_history = user_hist_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download History (CSV)",
+            data=csv_history,
+            file_name="my_scrape_history.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("No scraping history found yet. Run your first scrape from the 'Scrape Engine' tab!")
