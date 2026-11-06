@@ -141,22 +141,42 @@ init_db()
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="SwiftScrape SaaS Pro", page_icon="", layout="wide")
 
-# --- CUSTOM CSS STYLING ---
+# --- CUSTOM CSS STYLING (Fixed Sidebar & User Box Theme) ---
 st.markdown("""
     <style>
     .main {
         background-color: #0e1117;
     }
+    
     h1, h2, h3 {
         color: #FAFAFA;
     }
+    
+    /* Sidebar Background & Text Color Fix */
     section[data-testid="stSidebar"] {
         background-color: #1f2430;
         border-right: 1px solid #2d3343;
     }
+    
     section[data-testid="stSidebar"] * {
         color: #FAFAFA !important;
     }
+    
+    /* FIX: User Info Box Background & Text */
+    section[data-testid="stSidebar"] div.stSuccess {
+        background-color: #283044 !important;
+        border: 1px solid #434c63 !important;
+        border-radius: 6px;
+    }
+    section[data-testid="stSidebar"] div.stSuccess * {
+        color: #00E676 !important;
+    }
+    
+    /* FIX: Dropdown text color */
+    div[data-baseweb="select"] * {
+        color: #1f2430 !important;
+    }
+    
     .stButton>button {
         width: 100%;
         border-radius: 8px;
@@ -170,6 +190,7 @@ st.markdown("""
         border: 1px solid #576385 !important;
         color: white !important;
     }
+    
     div.stLinkButton > a {
         width: 100%;
         border-radius: 8px;
@@ -185,12 +206,7 @@ st.markdown("""
         border: 1px solid #576385 !important;
         color: white !important;
     }
-    div.stSidebar div.stSuccess {
-        background-color: #283044 !important;
-        color: #00E676 !important;
-        border: 1px solid #36415d !important;
-        border-radius: 6px;
-    }
+    
     div[data-testid="stMetricValue"] {
         font-size: 2rem !important;
         color: #00E676 !important;
