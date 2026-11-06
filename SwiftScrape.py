@@ -161,13 +161,14 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
+    /* FIX: User Info Box Background & Text Color */
     section[data-testid="stSidebar"] div.stSuccess {
-        background-color: #e2e8f0 !important;
-        border: 1px solid #cbd5e1 !important;
+        background-color: #2b3142 !important;
+        border: 1px solid #434c63 !important;
         border-radius: 6px;
     }
     section[data-testid="stSidebar"] div.stSuccess * {
-        color: #0f172a !important;
+        color: #00E676 !important;
         font-weight: 600 !important;
     }
     
