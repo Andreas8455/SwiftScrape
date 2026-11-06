@@ -141,7 +141,7 @@ init_db()
 # --- 2. PAGE CONFIGURATION ---
 st.set_page_config(page_title="SwiftScrape SaaS Pro", page_icon="", layout="wide")
 
-# --- CUSTOM CSS STYLING (Black text in User Box & Sidebar) ---
+# --- CUSTOM CSS STYLING ---
 st.markdown("""
     <style>
     .main {
@@ -161,7 +161,6 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    /* User Info Box: Light background with BLACK text as requested */
     section[data-testid="stSidebar"] div.stSuccess {
         background-color: #e2e8f0 !important;
         border: 1px solid #cbd5e1 !important;
@@ -364,4 +363,43 @@ if st.sidebar.button("Log Out"):
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Bot & Scraping Controls")
-request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1
+request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
+max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
+custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
+    "Standard Desktop (Chrome)", 
+    "Mobile Bot (iPhone Safari)", 
+    "Googlebot Crawler"
+])
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("### Pro Plan - €10/month")
+st.sidebar.markdown("Unlimited Scrapes\nPriority Proxy Routing\nFull CSV/TXT Exports")
+stripe_payment_link = "https://buy.stripe.com/00w6oH1x2ckx24t3Jk2go04"
+st.sidebar.markdown("---")
+st.sidebar.link_button("Pay €10 / Month Now", stripe_payment_link, use_container_width=True)
+
+# --- MAIN APP INTERFACE ---
+st.title("SwiftScrape Enterprise Intelligence")
+st.markdown("Extract titles, headings, links, emails, and media assets instantly with advanced bot controls.")
+
+main_app_tab, history_tab = st.tabs(["Scrape Engine", "My Scrape History"])
+
+with main_app_tab:
+    col_input1, col_input2 = st.columns([4, 1])
+    with col_input1:
+        url = st.text_input("Target URL:", "https://news.ycombinator.com", label_visibility="collapsed", placeholder="Enter website URL")
+    with col_input2:
+        scrape_btn = st.button("Start Scrape", use_container_width=True)
+
+    if scrape_btn:
+        if not url.startswith("http"):
+            st.error("Please enter a valid URL starting with 'http://' or 'https://'.")
+        else:
+            with st.spinner("Executing deep web extraction with bot configurations..."):
+                try:
+                    ua_dict = {
+                        "Standard Desktop (Chrome)": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        "Mobile Bot (iPhone Safari)": 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)',
+                        "Googlebot Crawler": 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+                    }
+                    headers
