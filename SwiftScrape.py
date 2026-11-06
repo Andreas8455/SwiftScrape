@@ -161,24 +161,16 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    /* User Info Box */
-    section[data-testid="stSidebar"] div.stSuccess {
-        background-color: #161b22 !important;
-        border: 1px solid #30363d !important;
-        border-radius: 6px;
-    }
-    section[data-testid="stSidebar"] div.stSuccess * {
-        color: #00E676 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* FIX: Selectbox / Dropdown text and background fix */
-    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+    /* FIX: Selectbox / Dropdown complete styling fix */
+    section[data-testid="stSidebar"] div[data-baseweb="select"] {
         background-color: #2b3142 !important;
         border: 1px solid #434c63 !important;
+        border-radius: 6px;
     }
-    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
+    section[data-testid="stSidebar"] div[data-baseweb="select"] div,
+    section[data-testid="stSidebar"] div[data-baseweb="select"] span {
         color: #FAFAFA !important;
+        background-color: transparent !important;
     }
     
     .stButton>button {
