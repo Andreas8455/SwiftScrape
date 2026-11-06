@@ -161,15 +161,14 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    /* FIX: Selectbox / Dropdown complete styling fix */
+    /* FIX: Selectbox / Dropdown absolute fix for background and black text */
     section[data-testid="stSidebar"] div[data-baseweb="select"] {
-        background-color: #2b3142 !important;
-        border: 1px solid #434c63 !important;
-        border-radius: 6px;
+        background-color: #e2e8f0 !important;
+        border-radius: 6px !important;
     }
-    section[data-testid="stSidebar"] div[data-baseweb="select"] div,
-    section[data-testid="stSidebar"] div[data-baseweb="select"] span {
-        color: #FAFAFA !important;
+    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
+        color: #0f172a !important;
+        font-weight: 600 !important;
         background-color: transparent !important;
     }
     
