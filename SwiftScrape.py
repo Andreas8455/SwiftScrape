@@ -161,17 +161,6 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    /* FIX: Selectbox / Dropdown absolute fix for background and black text */
-    section[data-testid="stSidebar"] div[data-baseweb="select"] {
-        background-color: #e2e8f0 !important;
-        border-radius: 6px !important;
-    }
-    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
-        color: #0f172a !important;
-        font-weight: 600 !important;
-        background-color: transparent !important;
-    }
-    
     .stButton>button {
         width: 100%;
         border-radius: 8px;
@@ -369,11 +358,17 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("Bot & Scraping Controls")
 request_delay = st.sidebar.slider("Request Delay (sec)", 0.0, 5.0, 1.0, help="Delay between requests to avoid getting banned.")
 max_links_limit = st.sidebar.slider("Max Links to Parse", 10, 200, 50, help="Limit for extracted links.")
-custom_user_agent = st.sidebar.selectbox("User-Agent Mode", [
-    "Standard Desktop (Chrome)", 
-    "Mobile Bot (iPhone Safari)", 
-    "Googlebot Crawler"
-])
+
+# Custom HTML Dropdown για το User-Agent Mode ώστε να μην επηρεάζεται από το Streamlit
+st.sidebar.markdown("""
+    <div style="font-size: 0.85rem; font-weight: 600; color: #FAFAFA; margin-bottom: 5px;">User-Agent Mode</div>
+""", unsafe_allow_html=True)
+
+custom_user_agent = st.sidebar.selectbox(
+    "User-Agent Mode", 
+    ["Standard Desktop (Chrome)", "Mobile Bot (iPhone Safari)", "Googlebot Crawler"],
+    label_visibility="collapsed"
+)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### Pro Plan - €10/month")
