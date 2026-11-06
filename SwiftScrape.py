@@ -161,8 +161,24 @@ st.markdown("""
         color: #FAFAFA !important;
     }
     
-    div[data-baseweb="select"] * {
-        color: #1f2430 !important;
+    /* User Info Box */
+    section[data-testid="stSidebar"] div.stSuccess {
+        background-color: #161b22 !important;
+        border: 1px solid #30363d !important;
+        border-radius: 6px;
+    }
+    section[data-testid="stSidebar"] div.stSuccess * {
+        color: #00E676 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* FIX: Selectbox / Dropdown text and background fix */
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: #2b3142 !important;
+        border: 1px solid #434c63 !important;
+    }
+    section[data-testid="stSidebar"] div[data-baseweb="select"] * {
+        color: #FAFAFA !important;
     }
     
     .stButton>button {
@@ -347,7 +363,6 @@ st.sidebar.title("SwiftScrape Pro")
 username_val = st.session_state.get('username', 'Guest')
 email_val = st.session_state.get('email', '')
 
-# Custom HTML User Box to guarantee dark background and clear visible text
 st.sidebar.markdown(f"""
     <div style="background-color: #161b22; padding: 12px; border-radius: 6px; border: 1px solid #30363d; margin-bottom: 15px;">
         <div style="color: #00E676; font-weight: 600; font-size: 0.95rem;">User: {username_val}</div>
